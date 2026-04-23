@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import quoteRoutes from './routes/quote';
+import quoteRoutes from './routes/quote.js';
 
 const app = express();
 app.use(cors());
