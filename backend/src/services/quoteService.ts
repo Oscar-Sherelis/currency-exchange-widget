@@ -1,39 +1,63 @@
-import { getRates } from './exchangeService.js';
+import { getRates } from "./exchangeService.js";
 
-const SUPPORTED = ['USD', 'EUR', 'GBP', 'ILS'];
+export const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP", "ILS"] as const;
+export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
+
+/**
+ * Global liquidity spread: 3%.
+ * Client receives LESS than the raw market rate.
+ * Correct formula: spreadRate = rawRate × (1 - SPREAD)
+ *
+ * The spread is the provider's margin on the transaction.
+ * Applying (1 - SPREAD) means the displayed rate is the executable rate —
+ * what the client actually gets, not a theoretical pre-spread figure.
+ */
 const SPREAD = 0.03;
+
+export interface QuoteResult {
+  exchangeRate: number;
+  quoteAmount: number;
+}
 
 export async function getQuote(
   baseCurrency: string,
   quoteCurrency: string,
   baseAmount: number
-) {
-  if (!SUPPORTED.includes(baseCurrency) || !SUPPORTED.includes(quoteCurrency)) {
-    throw new Error('Unsupported currency');
+): Promise<QuoteResult> {
+  const base = baseCurrency.toUpperCase();
+  const quote = quoteCurrency.toUpperCase();
+
+  if (
+    !SUPPORTED_CURRENCIES.includes(base as SupportedCurrency) ||
+    !SUPPORTED_CURRENCIES.includes(quote as SupportedCurrency)
+  ) {
+    throw new Error(`Unsupported currency. Supported: ${SUPPORTED_CURRENCIES.join(", ")}`);
   }
 
-  const data = await getRates();
+  console.log('test base ', baseAmount)
+  if (base === quote) {
+    return { exchangeRate: 1.0, quoteAmount: baseAmount };
+  }
 
-  const rates = data.rates;
+  // Fetch rates with base as the pivot — avoids double-conversion rounding
+  const data = await getRates(base);
+  const rawRate = data.rates[quote];
 
-  // Convert base -> USD if needed
-  let amountInUSD =
-    baseCurrency === 'USD'
-      ? baseAmount / 100
-      : (baseAmount / 100) / rates[baseCurrency];
+  if (rawRate === undefined) {
+    throw new Error(`No rate available for ${quote}`);
+  }
 
-  // Convert USD -> quote
-  let rate =
-    quoteCurrency === 'USD'
-      ? 1
-      : rates[quoteCurrency];
+  // Apply spread: client receives less (provider earns the margin)
+  const spreadRate = rawRate * (1 - SPREAD);
 
-  let finalRate = rate * (1 + SPREAD);
+  // exchangeRate: 3 decimal places — standard FX display precision
+  const exchangeRate = Number(spreadRate.toFixed(3));
 
-  const quoteAmount = Math.round(amountInUSD * finalRate * 100);
+  const rawQuoteAmount = baseAmount * spreadRate;
 
-  return {
-    exchangeRate: Number(finalRate.toFixed(3)),
-    quoteAmount,
-  };
+  // Round to 2 decimal places and keep as number
+  const quoteAmount = Number(rawQuoteAmount.toFixed(2));
+
+
+  return { exchangeRate, quoteAmount };
 }

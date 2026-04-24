@@ -5,11 +5,12 @@
     // "rootDir": "./src",
     // "outDir": "./dist",
 
-    "target": "esnext",
+    "target": "ES2022",
 
-    "module": "nodenext",
-
-    // "moduleResolution": "Node",
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "moduleResolution": "NodeNext",
+    "allowSyntheticDefaultImports": true,
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     // "module": "nodenext",
@@ -45,5 +46,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }
